@@ -16,6 +16,7 @@ import stat
 import hashlib
 import json
 import glob
+import pathlib
 import subprocess
 from shutil import rmtree
 from pprint import pprint
@@ -35,8 +36,6 @@ _VERSION_ = "0.0.0.3"
 _NAME_    = "index-pbench"
 _DEBUG    = 0
 
-# define a temporary dir to be used for temporary sar data extraction
-TMP_WORK_DIR = "/tmp/"
 # list of file names present in the pbench tar ball,
 # that use a special indexing method. Currently, sar is supported.
 SPECIAL_PARAMS_LIST = ['sar.data']
@@ -859,8 +858,12 @@ def main(options, args):
             es = Elasticsearch(hosts, max_retries=0)
 
         # prepare the actions - the tarball name is the only argument.
-        hostname = os.path.basename(os.path.dirname(args[0]))
-        tbname = args[0]
+        if options.tbpath:
+            hostname = os.path.basename(os.path.dirname(options.tbpath))
+            tbname = options.tbpath
+        else:
+            hostname = os.path.basename(os.path.dirname(args[-1]))
+            tbname = args[-1]
         tb = tarfile.open(tbname)
 
         # this is the top-level name of the run - it should be the common
@@ -893,38 +896,54 @@ def main(options, args):
             except Exception as e:
                 raise TemplateError(e)
 
-        actions, toc_extra = mk_actions(hostname, tbname, dirname, dirprefix,
-                                        tb, mdconf, idxname, options)
+        actions, toc_extra = mk_actions(hostname, tbname, dirname, dirprefix, tb, mdconf, idxname, options)
         # for i in range(len(actions[1:])): print(i+1, actions[i+1]['_source']['dirname'])
-        if options.unittest:
-            pprint(actions, width=100)
-            return 0
-
-        # returns 0 0r 1
 
         # convert sar.data files into xml files (to reside inside TMP_WORK_DIR)
         # and then use index_sar.call_indexer() to index them using this
         if not toc_extra:
-            print("no special paths found to be indexed separately; \
-                 indexing pbench-run and pbench-run-toc-entry",
+            print("no special paths found (to be indexed separately). " + \
+                     "indexing pbench-run and pbench-run-toc-entry",
                  file=sys.stderr)
         else:
+            # define a temporary dir to be used for temporary sar data extraction
+            #import pdb; pdb.set_trace()
+            if options.tempdir:
+                TMP_WORK_DIR = options.tempdir
+                try:
+                    if not os.path.exists(TMP_WORK_DIR):
+                        os.makedirs(TMP_WORK_DIR)
+                except FileExistsError:
+                    pass
+                except Exception as E:
+                    print("Exception occured while using %s as temp dir" \
+                          % TMP_WORK_DIR, file=sys.stderr)
+                    print("Falling back to /tmp as default..", file=sys.stderr)
+                    TMP_WORK_DIR = '/tmp'
+            else:
+                print("Falling back to /tmp as default..", file=sys.stderr)
+                TMP_WORK_DIR = '/tmp'
+                
+            print(">>>>>>> %s" % TMP_WORK_DIR)
+            # process contents of toc_extra
             for special_case in toc_extra:
                 if special_case == 'sar.data':
                     for m in toc_extra[special_case]:
                         uid = m.name.split('/sar/sar.data')[0]
+                        #m.name = os.path.basename(m.name)
+                        os.makedirs(os.path.join(TMP_WORK_DIR, os.path.dirname(m.path)))
                         tb.extract(member=m, path=TMP_WORK_DIR)
                         # now run os_detect and sadf binaries on this path
                         # and extract xml on same paths
                         sa_data_file = os.path.join(TMP_WORK_DIR, m.path)
 
                         # call ./extractsa <sa binary path> <temporary .xml path>
-                        # import pdb; pdb.set_trace()
                         p = subprocess.Popen([os.path.join(os.path.dirname(__file__),
                                             'extractsa'), sa_data_file, sa_data_file+'.xml'],
                                         stdout=subprocess.PIPE)
                         odata, edata = p.communicate()
 
+                        # TODO: add conversion for files which belong to an older sysstat version
                         if edata:
                             print("could not convert binary: %s"%(sa_data_file),
                                 file=sys.stderr)
@@ -935,18 +954,23 @@ def main(options, args):
                         if not client_nodename:
                             print("could not detect client", file=sys.stderr)
 
-                        index_sar.call_indexer(file_path=sa_data_file+'.xml',
-                                               _nodename=client_nodename,
-                                               cfg_name=cfg_name,
-                                               run_unique_id=uid,
-                                               run_md5=get_md5sum(tbname))
-                        #    _index_name='sar')
+                        if not options.unittest:
+                            index_sar.call_indexer(file_path=sa_data_file+'.xml',
+                                                   _nodename=client_nodename,
+                                                   cfg_name=cfg_name,
+                                                   run_unique_id=uid,
+                                                   run_md5=get_md5sum(tbname))
+                        else:
+                            print(open(sa_data_file+'.xml', 'r').read())
 
                         # TODO: generate grafana dashboard using create_dashboard
-
                         # finally, cleanup TMP_WORK_DIR tmp files (xmls, binaries)
-                        os.remove(sa_data_file+'.xml')
-                        rmtree(os.path.join(TMP_WORK_DIR, dirname))
+                        rmtree(os.path.join(TMP_WORK_DIR, pathlib.Path(m.name).parts[0]))
+
+        if options.unittest:
+            pprint(actions, width=100)
+            return 0
+        # returns 0 or 1
 
         return es_index(es, actions)
 
@@ -994,12 +1018,14 @@ def main(options, args):
 
 prog_options = [
     make_option("-C", "--config", dest="cfg_name", help="Specify config file"),
+    make_option("-D", "--tempdir",  dest="tempdir", help="Path to temp dir for data extraction"),
+    make_option("-P", "--path", dest="tbpath", help="Path to tarball (.tar.xz)"),    
+    make_option("-T", "--timeit", action="store_true", dest="timeit", help="Time action making routines"),
     make_option("-U", "--unittest", action="store_true", dest="unittest", help="Run in unittest mode"),
-    make_option("-T", "--timeit", action="store_true", dest="timeit", help="Time action making routines")
 ]
 
 if __name__ == '__main__':
-    parser = OptionParser("Usage: index-pbench [--config <path-to-config-file>] <path-to-tarball>")
+    parser = OptionParser("Usage: index-pbench [--tempdir <temp dir path>] [--config <path-to-config-file>] [--path <path-to-tarball>]")
     for o in prog_options:
         parser.add_option(o)
 

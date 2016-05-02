@@ -1,4 +1,5 @@
 +++ Running indexing on /var/tmp/pbench-test-server/test-7.6
+no special paths found (to be indexed separately). indexing pbench-run and pbench-run-toc-entry
 [{'_id': 'c71b2c9c961ebd55f61273a6a020bdc6',
   '_index': 'pbench.2015-09',
   '_op_type': 'create',

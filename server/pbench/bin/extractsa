@@ -22,14 +22,6 @@ LC_ALL=C ${BASH_SOURCE%/*}/vos/analysis/bin/sadf-$sadf_type-64 -x "$sa_data_file
 client_nodename=$(${BASH_SOURCE%/*}/detect_nodename $xml_file_path)
 echo "nodename: $client_nodename"
 
-# cfg_name=$3
-# uid=$4
-# run_md5=$5
-# ${BASH_SOURCE%/*}/index-sar $xml_file_path $client_nodename $cfg_name $uid $run_md5
-
-# rm "$xml_file_path"
-# echo "${sa_data_file##*.}"
-# echo "${sa_data_file}"
 if [[ "$(basename $sa_data_file)" =~ ^.*\.conv$ ]]; then
   rm "$sa_data_file"
 fi
