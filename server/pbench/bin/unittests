@@ -50,7 +50,7 @@ function _run_index {
     shift
     mkdir -p $_testdir
     echo "+++ Running indexing on $dname" >> $_testout
-    PYTHONPATH=${_tlib}:$PYTHONPATH $_tdir/index-pbench -U -C ${_tlib}/config/pbench-index.cfg.example $dname.tar.xz >> $_testout 2>&1
+    PYTHONPATH=${_tlib}:$PYTHONPATH $_tdir/index-pbench -U -C ${_tlib}/config/pbench-index.cfg.example -D $_testdir -P $dname.tar.xz >> $_testout 2>&1
     echo "--- Finished indexing on $dname (status=$?)" >> $_testout
     _gitdir=$(dirname $(dirname $(dirname $_tdir)))
     sed -i '/File "'$(echo ${_gitdir} | sed 's;/;\\/;g')'/s;'${_gitdir}'/server/;/home/user/repo/pbench/server/;' $_testout
@@ -180,6 +180,9 @@ declare -A cmds=(
 
     # pbench-rsync-satellite
     [test-10]="_run pbench-rsync-satellite TEST foo.bar.com $_testroot/pbench/archive"
+
+    # 9. verify special 'toc' paths (like sar data) are processed
+    [test-11]="_run_activate $_testroot/test-11"    
 )
 
 # indexing unit tests - why is this necessary?
@@ -205,4 +208,3 @@ for test in  $tests ;do
    _reset_state
 done
 exit $failures
-
