@@ -42,7 +42,7 @@ function _run_index {
     shift
     mkdir -p $_testdir
     echo "+++ Running indexing on $dname" >> $_testout
-    PYTHONPATH=${_tlib}:$PYTHONPATH $_tdir/index-pbench -U -C ${_tlib}/config/pbench-index.cfg.example $dname.tar.xz >> $_testout 2>&1
+    PYTHONPATH=${_tlib}:$PYTHONPATH $_tdir/index-pbench -U -C ${_tlib}/config/pbench-index.cfg.example -D $_testdir -P $dname.tar.xz >> $_testout 2>&1
     echo "--- Finished indexing on $dname (status=$?)" >> $_testout
     _gitdir=$(dirname $(dirname $(dirname $_tdir)))
     sed -i '/File "'$(echo ${_gitdir} | sed 's;/;\\/;g')'/s;'${_gitdir}'/server/;/home/user/repo/pbench/server/;' $_testout
@@ -226,7 +226,9 @@ res=$?
 _reset_state
 
 
-# indexing unit tests
+#
+# 7. indexing unit tests
+#
 PATH=/usr/local/bin:$PATH
 
 for i in {1..7} ;do
@@ -236,13 +238,25 @@ for i in {1..7} ;do
     _verify_output $res test-7.$i
     res=$?
     _reset_state
-done    
+done
 
-# activation unit test
+#
+# 8. activation unit test
+#
 _setup_state test-8
 _run_activate $_testroot/test-8
 _save_tree; _dump_logs
 _verify_output $res test-8
 res=$?
+
+#
+# 9. verify special 'toc' paths (like sar data) are processed
+#
+_setup_state test-9
+_run_index $_testroot/test-9
+_save_tree; _dump_logs
+_verify_output $res test-9
+res=$?
+_reset_state
 
 exit $res
