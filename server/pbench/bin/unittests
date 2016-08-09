@@ -248,6 +248,7 @@ _run_activate $_testroot/test-8
 _save_tree; _dump_logs
 _verify_output $res test-8
 res=$?
+_reset_state
 
 #
 # 9. verify special 'toc' paths (like sar data) are processed
