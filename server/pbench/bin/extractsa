@@ -17,7 +17,7 @@ if [[ "$sadf_type" == *Invalid* ]]; then
     sa_data_file="${sa_data_file%/}".conv
 fi
 
-LC_ALL=C ${BASH_SOURCE%/*}/vos/analysis/bin/sadf-$sadf_type-64 -x "$sa_data_file" -- -A > "$xml_file_path"
+TZ=UTC LC_ALL=C ${BASH_SOURCE%/*}/vos/analysis/bin/sadf-$sadf_type-64 -x "$sa_data_file" -- -A > "$xml_file_path"
 
 client_nodename=$(${BASH_SOURCE%/*}/detect_nodename $xml_file_path)
 echo "nodename: $client_nodename"
