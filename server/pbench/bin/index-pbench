@@ -626,7 +626,7 @@ def mk_source(hostname, tbname, dirname, dirprefix, tb, mdconf, md5sum, options)
     rec = {}
 
     if options.timeit: ts("mk_metadata")
-    rec['_metadata'] = mk_metadata(tbname, tb, mdconf, md5sum)
+    rec['metadata'] = mk_metadata(tbname, tb, mdconf, md5sum)
     #if options.timeit: ts("mk_pbench_metadata")
     #rec['pbench'] = mk_pbench_metadata(mdconf)
     if options.timeit: ts("mk_run_metadata")
@@ -698,7 +698,7 @@ def mk_results_action(hostname, tbname, dirname, dirprefix, tb, mdconf, idxname,
         "_index": idxname,
         "_type" : "pbench-run",
         "_id"   : md5sum,
-        "_timestamp" : ts,
+        "timestamp" : ts,
         "_source"    : source,
     }
     return action
@@ -721,7 +721,7 @@ def mk_toc_actions(hostname, tbname, dirname, dirprefix, tb, mdconf, idxname, md
             "_op_type": "create",
             "_index": idxname,
             "_type" : "pbench-run-toc-entry",
-            "_timestamp" : ts,
+            "timestamp" : ts,
             "_source"    : dirs[d],
             "_parent"    : md5sum
         }
@@ -923,7 +923,7 @@ def main(options, args):
             else:
                 print("Falling back to /tmp as default..", file=sys.stderr)
                 TMP_WORK_DIR = '/tmp'
-                
+
             print(">>>>>>> %s" % TMP_WORK_DIR)
             # process contents of toc_extra
             for special_case in toc_extra:
@@ -1019,7 +1019,7 @@ def main(options, args):
 prog_options = [
     make_option("-C", "--config", dest="cfg_name", help="Specify config file"),
     make_option("-D", "--tempdir",  dest="tempdir", help="Path to temp dir for data extraction"),
-    make_option("-P", "--path", dest="tbpath", help="Path to tarball (.tar.xz)"),    
+    make_option("-P", "--path", dest="tbpath", help="Path to tarball (.tar.xz)"),
     make_option("-T", "--timeit", action="store_true", dest="timeit", help="Time action making routines"),
     make_option("-U", "--unittest", action="store_true", dest="unittest", help="Run in unittest mode"),
 ]

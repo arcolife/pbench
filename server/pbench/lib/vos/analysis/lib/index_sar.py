@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
 
-from __future__ import print_function
-
-_DEBUG = 1
-_PROFILE = False
-
 # Version of this tool, <major>.<minor>.<rev>-<build>, where:
 #
 #   major: systemic layout change to _metadata or other field structures,
@@ -15,21 +10,31 @@ _PROFILE = False
 #
 # Started at 1.0.0-0 since we initiated this after a trial period.
 #
+
+from __future__ import print_function
+
 import os
 import sys
 import hashlib
 import logging
 import configparser
-import json, collections
-import lzma, contextlib
+import json
+import collections
+import lzma
+import contextlib
 import time
 import xml.parsers.expat
 import mmap
 from urllib3 import exceptions as ul_excs, Timeout
 from elasticsearch import VERSION, Elasticsearch, helpers, exceptions as es_excs
 
+_DEBUG = 1
+_PROFILE = False
+
 if _PROFILE:
-    import cProfile, cStringIO as StringIO, pstats
+    import pstats
+    import cProfile
+    import cStringIO as StringIO
 
 try:
     from logging import NullHandler
@@ -37,15 +42,17 @@ except ImportError:
     class NullHandler(logging.Handler):
         def handle(self, record):
             pass
+
         def emit(self, record):
             pass
+
         def createLock(self):
             self.lock = None
 
 _VERSION_ = "1.1.2-0"
 if VERSION < (1, 0, 0):
     print("At least v1.0.0 of the ElasticSearch Python client is required,"
-    " found %r" % (VERSION,), file=sys.stderr)
+          " found %r" % (VERSION,), file=sys.stderr)
     sys.exit(1)
 
 _read_timeout = 120
@@ -70,7 +77,7 @@ def gen_action(index, rec, nodename, ts):
         "_id": md5.hexdigest(),
         "_timestamp": ts,
         "_source": rec
-        }
+    }
     return action
 
 
@@ -98,6 +105,7 @@ def cvtnum(v):
         elif new_v < -sys.maxsize:
             new_v = -sys.maxsize
     return new_v
+
 
 def tstos(ts=None):
     return time.strftime("%Y-%m-%dT%H:%M:%S-%Z", time.localtime(ts))
@@ -139,16 +147,19 @@ class SysStatParse(object):
         'START', 'sysstat', 'host', 'statistics', 'timestamp', 'cpu-load',
         'cpu-load-all', 'io', 'memory', 'hugepages', 'kernel', 'serial',
         'power-management', 'disk', 'network', 'interrupts', 'int-global',
-        'int-proc', 'filesystems','cpu-frequency', 'fan-speed', 'comments',
+        'int-proc', 'filesystems', 'cpu-frequency', 'fan-speed', 'comments',
         'voltage-input', 'temperature', 'usb-devices', 'restarts'))
 
-    _int_name_map = { 'int-global': 'interrupts',
-                      'int-proc': 'interrupts-processor' }
+    _int_name_map = {
+        'int-global': 'interrupts',
+        'int-proc': 'interrupts-processor'
+    }
 
     def __init__(self, fname, target_nodename, es, unique_id, md5,
-                idx_prefix, blk_action_count):
+                 idx_prefix, blk_action_count):
         if _DEBUG > 9:
-            import pdb; pdb.set_trace()
+            import pdb
+            pdb.set_trace()
 
         # Input filename being considered
         self.fname = fname
@@ -216,13 +227,15 @@ class SysStatParse(object):
     def _error(self, msg, *args):
         print(msg % args, file=sys.stderr)
         if _DEBUG > 8:
-            import pdb; pdb.set_trace()
+            import pdb
+            pdb.set_trace()
             print(repr(self.stack))
 
     def _warn(self, msg, *args):
         print(msg % args, file=sys.stderr)
         if _DEBUG > 9:
-            import pdb; pdb.set_trace()
+            import pdb
+            pdb.set_trace()
             print(repr(self.stack))
 
     def _dump_actions(self):
@@ -248,7 +261,8 @@ class SysStatParse(object):
     def _pop_dict(self, name=None):
         if _DEBUG > 8:
             if len(self.curr_element_dict_stack) == 0:
-                import pdb; pdb.set_trace()
+                import pdb
+                pdb.set_trace()
             print(name, "popping", self.curr_element_dict, self.curr_element_dict_stack)
         else:
             assert len(self.curr_element_dict_stack) > 0
@@ -262,7 +276,8 @@ class SysStatParse(object):
         else:
             if _DEBUG > 8:
                 if name is None or self.curr_element_dict is None:
-                    import pdb; pdb.set_trace()
+                    import pdb
+                    pdb.set_trace()
             else:
                 assert name is not None
             self.curr_element_dict[name] = ced
@@ -289,7 +304,7 @@ class SysStatParse(object):
             if name == 'boot':
                 name_val = "recorded"
         assert timestamp_d
-        record = { 'timestamp': timestamp_d }
+        record = {'timestamp': timestamp_d}
         if name != 'timestamp':
             record[name] = name_val
         return record
@@ -307,18 +322,20 @@ class SysStatParse(object):
                 self.metadata[k] = cvtnum(v)
 
     def _register_action(self, name):
-        #assert self.curr_element_dict is not None
+        # assert self.curr_element_dict is not None
         if self.curr_element_dict is None:
             if _DEBUG > 8:
-                import pdb; pdb.set_trace()
+                import pdb
+                pdb.set_trace()
             print("bad state: _register_action() called with no action",
                   file=sys.stderr)
             self.exceptions += 1
             return
-        #assert len(self.curr_element_dict_stack) == 0
+        # assert len(self.curr_element_dict_stack) == 0
         if len(self.curr_element_dict_stack) > 0:
             if _DEBUG > 8:
-                import pdb; pdb.set_trace()
+                import pdb
+                pdb.set_trace()
             print("bad state: _register_action() called with a non-empty stack",
                   file=sys.stderr)
             self.exceptions += 1
@@ -330,7 +347,7 @@ class SysStatParse(object):
         self.metadata["generated-by-version"] = _VERSION_
         self.metadata["pbench_run_md5"] = self.pbench_run_md5
         self.metadata["pbench_run_unique_id"] = self.pbench_run_unique_id
-        record['_metadata'] = self.metadata
+        record['metadata'] = self.metadata
         try:
             timestamp = record['timestamp']
             ts = timestamp['date'] + 'T' + timestamp['time']
@@ -339,7 +356,8 @@ class SysStatParse(object):
                   " '%s' element does not have date and time"
                   " attributes" % name, file=sys.stderr)
             if _DEBUG > 8:
-                import pdb; pdb.set_trace()
+                import pdb
+                pdb.set_trace()
             self.exceptons += 1
             return
         else:
@@ -386,14 +404,16 @@ class SysStatParse(object):
                                 tstos(beg)), file=sys.stderr)
                             continue
                     if _DEBUG > 8:
-                        import pdb; pdb.set_trace()
+                        import pdb
+                        pdb.set_trace()
                     print("\tERROR (end ts: %s, duration: %.2fs): %s" % (
                         tstos(end), end - start, err), file=sys.stderr)
                     self.exceptions += 1
                 except Exception as err:
                     end = time.time()
                     if _DEBUG > 8:
-                        import pdb; pdb.set_trace()
+                        import pdb
+                        pdb.set_trace()
                     # print("\tERROR (end ts: %s, duration: %.2fs): %s" % (
                     #     tstos(end), end - start, err), file=sys.stderr)
                     self.exceptions += 1
@@ -555,21 +575,21 @@ class SysStatParse(object):
         elif self.state == 'statistics':
             if name == 'timestamp':
                 self._push(state='timestamp')
-                assert self.curr_element_dict == None
+                assert self.curr_element_dict is None
                 assert len(self.curr_element_dict_stack) == 0
                 self.curr_element_dict = self._create_record(name, attrs)
             else:
                 self._error("Ignoring element: %s, attrs: %r", name, attrs)
         elif self.state == 'restarts':
             if name == 'boot':
-                assert self.curr_element_dict == None
+                assert self.curr_element_dict is None
                 assert len(self.curr_element_dict_stack) == 0
                 self.curr_element_dict = self._create_record(name, attrs)
             else:
                 self._error("Ignoring start for element: %s, attrs: %r", name, attrs)
         elif self.state == 'comments':
             if name == 'comment':
-                assert self.curr_element_dict == None
+                assert self.curr_element_dict is None
                 assert len(self.curr_element_dict_stack) == 0
                 self.curr_element_dict = self._create_record(name, attrs)
             else:
@@ -619,7 +639,8 @@ class SysStatParse(object):
                 if data_buf != '':
                     # Encountered the end of another element, when expecting something else
                     if _DEBUG > 8:
-                        import pdb; pdb.set_trace()
+                        import pdb
+                        pdb.set_trace()
                     pass
                 else:
                     # Quietly swallow other empty elements that don't match this one
@@ -627,11 +648,13 @@ class SysStatParse(object):
                 return
             if data_buf:
                 if self.curr_element_dict is None:
-                    import pdb; pdb.set_trace()
+                    import pdb
+                    pdb.set_trace()
                 self.curr_element_dict[name] = cvtnum(data_buf)
             else:
                 if _DEBUG > 8:
-                    import pdb; pdb.set_trace()
+                    import pdb
+                    pdb.set_trace()
                     pass
                 else:
                     # Not debugging, ignore whitespace only element values
@@ -642,7 +665,8 @@ class SysStatParse(object):
                 if data_buf != '':
                     # Encountered the end of another element, when expecting something else
                     if _DEBUG > 8:
-                        import pdb; pdb.set_trace()
+                        import pdb
+                        pdb.set_trace()
                     pass
                 else:
                     # Quietly swallow other empty elements that don't match this one
@@ -652,7 +676,8 @@ class SysStatParse(object):
                 self.metadata[name] = cvtnum(data_buf)
             else:
                 if _DEBUG > 8:
-                    import pdb; pdb.set_trace()
+                    import pdb
+                    pdb.set_trace()
                     pass
                 else:
                     # Not debugging, ignore whitespace only values elements
@@ -681,7 +706,7 @@ class SysStatParse(object):
                             'steal': clad['steal'],
                             'system': clad['sys'] + clad['irq'] + clad['soft'],
                             'user': clad['usr'] + clad['guest']
-                            }
+                        }
                         try:
                             # with sysstat 10.1.6 and later we might have
                             # gnice values, which roll up into
@@ -811,9 +836,10 @@ def process_fp(fp, p, sparse):
         sys.stdout.flush()
     return beg, end
 
+
 def call_indexer(file_path=None, _nodename=None, TS_ALL=TS_ALL,
-                _index_name='', cfg_name=None, run_unique_id=None,
-                run_md5=None):
+                 _index_name='', cfg_name=None, run_unique_id=None,
+                 run_md5=None):
     if file_path == '-':
         fname = '-'
     else:
@@ -847,7 +873,7 @@ def call_indexer(file_path=None, _nodename=None, TS_ALL=TS_ALL,
         cfg_name = os.environ.get('VOS_CONFIG_PATH')
         if cfg_name is None:
             print("Need VOS_CONFIG_PATH environment variable defined",
-                                                        file=sys.stderr)
+                  file=sys.stderr)
             sys.exit(1)
 
     config = configparser.ConfigParser()
@@ -864,7 +890,7 @@ def call_indexer(file_path=None, _nodename=None, TS_ALL=TS_ALL,
         port = config.get('Server', 'port')
     else:
         host, port = URL.rsplit(':', 1)
-    hosts = [dict(host=host, port=port, timeout=timeoutobj),]
+    hosts = [dict(host=host, port=port, timeout=timeoutobj), ]
     es = Elasticsearch(hosts, max_retries=0)
 
     INDEX_PREFIX = config.get('Settings', 'index_prefix')
@@ -874,7 +900,7 @@ def call_indexer(file_path=None, _nodename=None, TS_ALL=TS_ALL,
 
     # Setup XML element parser
     sparse = SysStatParse(fname, target_nodename, es, run_unique_id,
-                        run_md5, INDEX_PREFIX, BULK_ACTION_COUNT)
+                          run_md5, INDEX_PREFIX, BULK_ACTION_COUNT)
     # Setup XML parser to use our element callback parser
     p = xml.parsers.expat.ParserCreate()
     p.StartElementHandler = sparse.start_element
@@ -899,13 +925,11 @@ def call_indexer(file_path=None, _nodename=None, TS_ALL=TS_ALL,
 
     TS_ALL = sorted(TS_ALL)
 
-
     if _DEBUG > 0:
         print("grafana_range_begin %s" % (TS_ALL[0]))
         print("grafana_range_end %s" % (TS_ALL[-1]))
         print("...parsed %s (%.03f secs)" %
-                                    (fname if fname != '-' else '<stdin>',
-                                    end - beg))
+              (fname if fname != '-' else '<stdin>', end - beg))
         sys.stdout.flush()
 
     if sparse.exceptions + sparse.errors > 0:

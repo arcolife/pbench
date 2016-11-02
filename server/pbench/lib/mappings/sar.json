@@ -1,14 +1,7 @@
 {
   "sar": {
-    "_timestamp": {
-      "enabled": true,
-      "store": true,
-      "fielddata": {
-        "format": "doc_values"
-      }
-    },
     "properties": {
-      "_metadata": {
+      "metadata": {
         "properties": {
           "file-date": {
             "type": "date",

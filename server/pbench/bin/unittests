@@ -181,7 +181,7 @@ declare -A cmds=(
     # pbench-rsync-satellite
     [test-10]="_run pbench-rsync-satellite TEST foo.bar.com $_testroot/pbench/archive"
 
-    # 9. verify special 'toc' paths (like sar data) are processed
+    # verify special 'toc' paths (like sar data) are processed
     [test-11]="_run_activate $_testroot/test-11"    
 )
 

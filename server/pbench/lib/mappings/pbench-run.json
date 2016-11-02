@@ -1,14 +1,7 @@
 {
     "pbench-run": {
-        "_timestamp": {
-            "enabled": true,
-            "store": true,
-            "fielddata": {
-                "format": "doc_values"
-            }
-        },
         "properties": {
-            "_metadata": {
+            "metadata": {
                 "properties": {
                     "md5": {
                         "type": "string",
@@ -133,7 +126,7 @@
                         }
                     }
                 }
-            }            
+            }
         }
     }
 }
